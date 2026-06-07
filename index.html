@@ -4,10 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Old Cassette — THEM?!CTF 2026 Writeup</title>
-<meta name="description" content="A CTF writeup for the Old Cassette challenge from THEM?!CTF 2026. Solving a CHIP-8 ROM with a trillion-step timer using PRNG cycle detection and modular arithmetic.">
+<meta name="description" content="A detailed CTF writeup for the Old Cassette challenge (100 pts, by SISUBENY) from THEM?!CTF 2026. Solving a CHIP-8 ROM with a trillion-step timer using PRNG cycle detection and modular arithmetic.">
 <meta property="og:title" content="Old Cassette — THEM?!CTF 2026 Writeup">
-<meta property="og:description" content="A CTF writeup for the Old Cassette challenge from THEM?!CTF 2026. Solving a CHIP-8 ROM with a trillion-step timer using PRNG cycle detection and modular arithmetic.">
+<meta property="og:description" content="A detailed CTF writeup for the Old Cassette challenge (100 pts, by SISUBENY) from THEM?!CTF 2026. Solving a CHIP-8 ROM with a trillion-step timer using PRNG cycle detection and modular arithmetic.">
 <meta property="og:type" content="article">
+<meta name="author" content="optimus_prime">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E📼%3C/text%3E%3C/svg%3E">
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Unbounded:wght@700;900&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&display=swap');
@@ -359,20 +360,38 @@ hr{border:none;border-top:1px solid #1a1812;margin:44px 0}
   background:#252218;
   color:#ede8df;
 }
+/* ── SKIP LINK ── */
+.skip-link{
+  position:absolute;
+  top:-40px;
+  left:0;
+  background:#c8860a;
+  color:#0c0b09;
+  padding:8px 16px;
+  font-family:'Space Mono',monospace;
+  font-size:12px;
+  z-index:100;
+  transition:top 0.2s;
+}
+.skip-link:focus{
+  top:0;
+}
 </style>
 
 </head>
 <body>
 
+<a href="#step1" class="skip-link">Skip to content</a>
+
 <div class="wrap">
 
 <!-- HERO -->
 <header class="hero">
-  <div class="hero-eyebrow">THEM?!CTF 2026 &nbsp;·&nbsp; Reverse Engineering &nbsp;·&nbsp; Hard</div>
+  <div class="hero-eyebrow">THEM?!CTF 2026 &nbsp;·&nbsp; Reverse Engineering &nbsp;·&nbsp; Easy &nbsp;·&nbsp; 100 pts</div>
   <h1 class="hero-title">OLD<br><em>CASS</em>ETTE</h1>
   <p class="hero-deck">A 3 KB mystery binary, a timer built to waste a trillion CPU cycles, and a PRNG cycle 34 steps long that collapses everything down to one modular lookup. This is how you read a flag off a 1970s virtual computer without waiting until the heat death of the universe.</p>
   <div class="hero-meta">
-    June 2026 &nbsp;<span>·</span>&nbsp; optimus_prime &nbsp;<span>·</span>&nbsp; Team e0_ &nbsp;<span>·</span>&nbsp; <a href="https://ctf.themctf.com/challenges?categories=sanity%2Cmisc%2Crev%2Cpwn%2Cforensics%2Cweb%2Ccrypto%2Cosint%2Cweb3#Old%20Cassette-6" style="color:#d4a94a;text-decoration:none">THEM?!CTF 2026</a>
+    June 2026 &nbsp;<span>·</span>&nbsp; optimus_prime &nbsp;<span>·</span>&nbsp; Team e0_ &nbsp;<span>·</span>&nbsp; Author: SISUBENY &nbsp;<span>·</span>&nbsp; <a href="https://ctf.themctf.com/challenges?categories=sanity%2Cmisc%2Crev%2Cpwn%2Cforensics%2Cweb%2Ccrypto%2Cosint%2Cweb3#Old%20Cassette-6" style="color:#d4a94a;text-decoration:none">THEM?!CTF 2026</a>
   </div>
 </header>
 
@@ -393,8 +412,8 @@ hr{border:none;border-top:1px solid #1a1812;margin:44px 0}
 <!-- WHAT IS THIS THING -->
 <div class="s-label">Background</div>
 <h2>What you're dealing with</h2>
-<p>You get a file called <code class="ic">main.bin</code>. No extension, no readme, just a blob. The flavour text mentions "an old cassette tape." That sentence is doing a lot of work.</p>
-<p>The binary is a <strong>CHIP-8 ROM</strong> — a program for an interpreted virtual machine from the 1970s, historically loaded onto hobbyist computers from cassette tape. CHIP-8 has a tiny instruction set (~35 opcodes), a 64×32 pixel display, 16 eight-bit registers (V0–VF, with VF reserved as the flag register), and programs that load at memory address <code class="ic">0x200</code>. It's practically a toy. This one hides a flag inside it.</p>
+<p>You get a file called <code class="ic">main.bin</code> — 3,282 bytes, no extension, no readme, just a blob. The flavour text says: <em>"I found this old cassette tape in my drawer XD"</em>. That sentence is doing a lot of work.</p>
+<p>The binary is a <strong>CHIP-8 ROM</strong> — a program for an interpreted virtual machine from the 1970s, historically loaded onto hobbyist computers from cassette tape. CHIP-8 has a tiny instruction set (~35 opcodes), a 64×32-pixel display, 16 eight-bit registers (V0–VF, with VF reserved as the carry/borrow flag register), and programs that load at memory address <code class="ic">0x200</code>. It's practically a toy. This one hides a flag inside it.</p>
 <p>The ROM draws 32 characters to screen, one at a time. Each character's sprite data is XOR-encrypted using two PRNG registers. Between each draw, the PRNG advances by an exponentially increasing number of steps — eventually reaching <strong>~1.1 trillion steps per character</strong>. The challenge title is also the hint: this is about time, specifically about not wasting all of it.</p>
 
 <div class="note amber">
@@ -414,7 +433,7 @@ hr{border:none;border-top:1px solid #1a1812;margin:44px 0}
     </div>
   </div>
 
-  <p>The first instinct is to run <code class="ic">file</code> (the Unix file command). It says <code class="ic">data</code>. Not helpful. Run <code class="ic">xxd</code> instead and look at the first two bytes:</p>
+  <p>The first instinct is to run <code class="ic">file</code> (the Unix file-type command). It says <code class="ic">data</code>. Not helpful. Run <code class="ic">xxd</code> instead and look at the first two bytes:</p>
 
 <pre><code>$ xxd main.bin | head -1
 00000000: <span class="co">00e0</span> 1280 a6a6 a6a6 a6a6 a6a6 a6a6 a6a6  ................</code></pre>
@@ -463,7 +482,7 @@ Cycle 26092  →  'THEM?'
     </div>
   </div>
 
-  <p>Load the binary into a CHIP-8 disassembler (or write one — the instruction set is small enough that a weekend afternoon covers it). The structure falls out quickly:</p>
+  <p>Load the binary into a CHIP-8 disassembler (or write one — the instruction set is small enough that an afternoon covers it). The structure falls out quickly:</p>
 
   <div class="memmap">
     <div class="mm-cell"><div class="mm-addr">0x200 — entry</div><div class="mm-desc">CLS, jump to 0x280</div></div>
@@ -504,7 +523,7 @@ Cycle 26092  →  'THEM?'
     <p>XOR is a bitwise operation where the same key both encrypts and decrypts. If <code class="ic">ciphertext = plaintext XOR key</code>, then <code class="ic">plaintext = ciphertext XOR key</code>. The "key" here is the pair (VA, VB). Predict those two bytes at each draw, and the entire cipher falls apart immediately.</p>
   </div>
 
-  <p>The PRNG state is two 8-bit values. State space: 256 × 256 = <strong>65,536 possible pairs</strong>. The PRNG update function at 0x2C0 is deterministic. Therefore, after at most 65,536 steps, it must revisit a state it's already seen — and from that point it loops forever. This is not an exploit; it's a mathematical certainty.</p>
+  <p>The PRNG state is two 8-bit values. State space: 256 × 256 = <strong>65,536 possible pairs</strong>. The PRNG update function at <code class="ic">0x2C0</code> is deterministic. Therefore, after at most 65,536 steps, it must revisit a state it's already seen — and from that point it loops forever. This is not an exploit; it's a mathematical certainty (the pigeonhole principle).</p>
 </div>
 
 <hr>
