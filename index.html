@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Old Cassette — THEM?!CTF 2026 Writeup</title>
+<meta name="description" content="A detailed CTF writeup for the Old Cassette challenge (100 pts, by SISUBENY) from THEM?!CTF 2026. Solving a CHIP-8 ROM with a trillion-step timer using PRNG cycle detection and modular arithmetic.">
+<meta property="og:title" content="Old Cassette — THEM?!CTF 2026 Writeup">
+<meta property="og:description" content="A detailed CTF writeup for the Old Cassette challenge (100 pts, by SISUBENY) from THEM?!CTF 2026. Solving a CHIP-8 ROM with a trillion-step timer using PRNG cycle detection and modular arithmetic.">
+<meta property="og:type" content="article">
+<meta name="author" content="optimus_prime">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E📼%3C/text%3E%3C/svg%3E">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Unbounded:wght@700;900&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&display=swap');
+
+html{
+  scroll-behavior: smooth;
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+
+body{
+  background:#0c0b09;
+  color:#d6cfc2;
+  font-family:'DM Sans',sans-serif;
+  font-size:16px;
+  line-height:1.75;
+}
+
+.wrap{max-width:820px;margin:0 auto;padding:0 28px 100px}
+
+/* ── HERO ── */
+.hero{padding:52px 0 36px;border-bottom:1px solid #222}
+.hero-eyebrow{
+  font-family:'Space Mono',monospace;
+  font-size:11px;
+  color:#c8860a;
+  letter-spacing:3px;
+  text-transform:uppercase;
+  margin-bottom:18px;
+}
+.hero-title{
+  font-family:'Unbounded',sans-serif;
+  font-size:clamp(52px,9vw,96px);
+  font-weight:900;
+  line-height:.92;
+  color:#ede8df;
+  margin-bottom:22px;
+  letter-spacing:-1px;
+}
+.hero-title em{color:#c8860a;font-style:normal}
+.hero-deck{
+  font-size:17px;
+  color:#9e9588;
+  max-width:580px;
+  line-height:1.7;
+  margin-bottom:24px;
+}
+.hero-meta{
+  font-family:'Space Mono',monospace;
+  font-size:11px;
+  color:#555;
+  letter-spacing:1px;
+}
+.hero-meta span{color:#7a7060;margin:0 10px}
+
+/* ── SECTION HEADERS ── */
+.s-label{
+  font-family:'Space Mono',monospace;
+  font-size:10px;
+  color:#c8860a;
+  letter-spacing:4px;
+  text-transform:uppercase;
+  margin-bottom:6px;
+  margin-top:56px;
+}
+h2{
+  font-family:'Unbounded',sans-serif;
+  font-weight:700;
+  font-size:28px;
+  color:#ede8df;
+  line-height:1.15;
+  margin-bottom:18px;
+  padding-left:12px;
+  border-left:3px solid #c8860a;
+}
+h2.teal{border-left-color:#3dbfb8}
+h2.red {border-left-color:#c05050}
+h2.grn {border-left-color:#6aab6a}
+
+/* ── STEP BLOCKS ── */
+.step{margin-top:48px}
+.step-hd{
+  display:flex;
+  gap:18px;
+  align-items:flex-start;
+  margin-bottom:14px;
+}
+.step-n{
+  font-family:'Unbounded',sans-serif;
+  font-weight:900;
+  font-size:11px;
+  color:#c8860a;
+  background:#1e1500;
+  border:1px solid #3d2a00;
+  border-radius:3px;
+  padding:3px 8px;
+  flex-shrink:0;
+  margin-top:4px;
+  letter-spacing:1px;
+}
+.step-title{
+  font-family:'Unbounded',sans-serif;
+  font-weight:700;
+  font-size:22px;
+  color:#ede8df;
+  line-height:1.2;
+}
+.step-sub{
+  font-size:13px;
+  color:#6b6358;
+  margin-top:3px;
+  font-style:italic;
+}
+
+/* ── PROSE ── */
+p{color:#9e9588;margin-bottom:13px}
+p strong{color:#c8c0b0;font-weight:500}
+p em{color:#d4a94a;font-style:normal}
+ul{color:#9e9588;padding-left:22px;margin-bottom:13px}
+li{margin-bottom:5px}
+li strong{color:#c8c0b0;font-weight:500}
+
+/* ── CODE ── */
+pre{
+  background:#111009;
+  border:1px solid #252218;
+  border-left:3px solid #c8860a;
+  border-radius:4px;
+  padding:18px 20px;
+  overflow-x:auto;
+  margin:16px 0;
+}
+pre.teal{border-left-color:#3dbfb8}
+pre.grn {border-left-color:#6aab6a}
+pre.red {border-left-color:#c05050}
+code{
+  font-family:'Space Mono',monospace;
+  font-size:12.5px;
+  line-height:1.85;
+  color:#bfb49e;
+}
+.cm{color:#7a7060;font-style:italic}
+.ck{color:#9d7cd8}
+.cv{color:#db6e6e}
+.cs{color:#89b56a}
+.cn{color:#d4913a}
+.cf{color:#4db8b0}
+.co{color:#d4a94a}
+code.ic{
+  display:inline;
+  font-family:'Space Mono',monospace;
+  font-size:12px;
+  background:#1a1812;
+  border:1px solid #2e2a20;
+  border-radius:3px;
+  padding:1px 6px;
+  color:#d4a94a;
+}
+
+/* ── CALLOUT BOXES ── */
+.note{
+  border:1px solid #2e2a20;
+  border-radius:5px;
+  padding:16px 20px;
+  margin:18px 0;
+  background:#111009;
+}
+.note.amber{border-color:#3d2a00;background:#100c00}
+.note.teal {border-color:#0f3030;background:#001515}
+.note.grn  {border-color:#1a3518;background:#010d04}
+.note.red  {border-color:#3d1515;background:#0e0000}
+.note-title{
+  font-family:'Space Mono',monospace;
+  font-size:10px;
+  letter-spacing:2px;
+  text-transform:uppercase;
+  margin-bottom:8px;
+}
+.note.amber .note-title{color:#c8860a}
+.note.teal  .note-title{color:#3dbfb8}
+.note.grn   .note-title{color:#6aab6a}
+.note.red   .note-title{color:#c05050}
+.note p{margin-bottom:0;font-size:14.5px}
+
+/* ── MEMORY MAP ── */
+.memmap{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(165px,1fr));
+  gap:8px;
+  margin:16px 0;
+}
+.mm-cell{
+  background:#111009;
+  border:1px solid #252218;
+  border-radius:4px;
+  padding:10px 14px;
+  font-family:'Space Mono',monospace;
+}
+.mm-addr{color:#c8860a;font-size:12px;font-weight:700}
+.mm-desc{color:#6b6358;font-size:11px;margin-top:3px;line-height:1.4}
+
+/* ── TABLE ── */
+.tbl{width:100%;border-collapse:collapse;margin:16px 0;font-size:13.5px}
+.tbl th{
+  font-family:'Space Mono',monospace;
+  font-size:10px;
+  letter-spacing:2px;
+  color:#c8860a;
+  text-align:left;
+  padding:8px 12px;
+  border-bottom:1px solid #2e2a20;
+  text-transform:uppercase;
+}
+.tbl td{
+  font-family:'Space Mono',monospace;
+  font-size:12px;
+  color:#9e9588;
+  padding:7px 12px;
+  border-bottom:1px solid #1a1812;
+}
+.tbl tr:last-child td{border-bottom:none}
+.tbl td.addr{color:#d4a94a}
+.tbl td.big{color:#c05050;font-weight:700}
+.tbl tbody tr:hover td{background:#111009}
+
+/* ── CYCLE VIZ ── */
+.cycle-wrap{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  gap:4px;
+  margin:14px 0;
+  font-family:'Space Mono',monospace;
+}
+.cy{
+  width:28px;height:28px;
+  border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:9px;font-weight:700;flex-shrink:0;
+}
+.cy-pre {background:#1a1812;border:1px solid #2e2a20;color:#7a7060}
+.cy-on  {background:#001515;border:1px solid #3dbfb8;color:#3dbfb8}
+.cy-loop{border:2px dashed #c8860a;color:#c8860a}
+.cy-lbl {font-size:10px;color:#7a7060;letter-spacing:1px;margin:0 3px}
+
+/* ── FLAG ── */
+.flag-box{
+  border:1px solid #3d2a00;
+  border-radius:6px;
+  background:#080600;
+  padding:28px 30px;
+  margin:26px 0;
+  text-align:center;
+}
+.flag-lbl{
+  font-family:'Space Mono',monospace;
+  font-size:10px;
+  color:#c8860a;
+  letter-spacing:4px;
+  text-transform:uppercase;
+  margin-bottom:12px;
+}
+.flag-val{
+  font-family:'Space Mono',monospace;
+  font-size:clamp(13px,2.2vw,20px);
+  color:#d4a94a;
+  font-weight:700;
+  letter-spacing:1px;
+  word-break:break-all;
+}
+.flag-note{font-size:13px;color:#55504a;margin-top:10px;font-style:italic}
+
+/* ── LESSONS ── */
+.lessons{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(210px,1fr));
+  gap:10px;
+  margin:16px 0;
+}
+.lcard{
+  background:#111009;
+  border:1px solid #252218;
+  border-radius:5px;
+  padding:15px 17px;
+}
+.lcard-n{
+  font-family:'Space Mono',monospace;
+  font-size:10px;
+  color:#c8860a;
+  margin-bottom:7px;
+  letter-spacing:1px;
+}
+.lcard-h{font-size:14px;font-weight:500;color:#c8c0b0;margin-bottom:4px}
+.lcard-b{font-size:13px;color:#6b6358;line-height:1.6;margin:0}
+
+/* ── RABBIT ── */
+.rabbit{display:flex;gap:12px;margin-bottom:12px;align-items:flex-start}
+.rx{font-family:'Space Mono',monospace;color:#c05050;font-size:14px;flex-shrink:0;margin-top:3px}
+.rt{font-size:14.5px;color:#9e9588;line-height:1.65}
+.rt strong{color:#c8c0b0;font-weight:500}
+
+/* ── CLOSING ── */
+.closing{
+  margin-top:56px;
+  padding:26px 28px;
+  border:1px solid #1a1812;
+  border-radius:5px;
+  background:#0e0d0b;
+}
+.closing p{font-family:'Space Mono',monospace;font-size:13px;color:#55504a;line-height:1.9;margin:0}
+.closing strong{color:#c8860a}
+
+/* ── DIVIDER ── */
+hr{border:none;border-top:1px solid #1a1812;margin:44px 0}
+
+/* ── TOC ── */
+.toc{
+  margin:36px 0;
+  padding:20px;
+  background:#111009;
+  border:1px solid #252218;
+  border-radius:5px;
+}
+.toc-title{
+  font-family:'Space Mono',monospace;
+  font-size:10px;
+  color:#c8860a;
+  letter-spacing:2px;
+  text-transform:uppercase;
+  margin-bottom:12px;
+}
+.toc-list{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+}
+.toc-link{
+  display:inline-block;
+  padding:6px 12px;
+  background:#1a1812;
+  border:1px solid #2e2a20;
+  border-radius:3px;
+  font-family:'Space Mono',monospace;
+  font-size:12px;
+  color:#d4a94a;
+  text-decoration:none;
+}
+.toc-link:hover{
+  background:#252218;
+  color:#ede8df;
+}
+/* ── SKIP LINK ── */
+.skip-link{
+  position:absolute;
+  top:-40px;
+  left:0;
+  background:#c8860a;
+  color:#0c0b09;
+  padding:8px 16px;
+  font-family:'Space Mono',monospace;
+  font-size:12px;
+  z-index:100;
+  transition:top 0.2s;
+}
+.skip-link:focus{
+  top:0;
+}
+</style>
+
+</head>
+<body>
+
+<a href="#step1" class="skip-link">Skip to content</a>
+
+<div class="wrap">
+
+<!-- HERO -->
+<header class="hero">
+  <div class="hero-eyebrow">THEM?!CTF 2026 &nbsp;·&nbsp; Reverse Engineering &nbsp;·&nbsp; Easy &nbsp;·&nbsp; 100 pts</div>
+  <h1 class="hero-title">OLD<br><em>CASS</em>ETTE</h1>
+  <p class="hero-deck">A 3 KB mystery binary, a timer built to waste a trillion CPU cycles, and a PRNG cycle 34 steps long that collapses everything down to one modular lookup. This is how you read a flag off a 1970s virtual computer without waiting until the heat death of the universe.</p>
+  <div class="hero-meta">
+    June 2026 &nbsp;<span>·</span>&nbsp; optimus_prime &nbsp;<span>·</span>&nbsp; Team e0_ &nbsp;<span>·</span>&nbsp; Author: SISUBENY &nbsp;<span>·</span>&nbsp; <a href="https://ctf.themctf.com/challenges?categories=sanity%2Cmisc%2Crev%2Cpwn%2Cforensics%2Cweb%2Ccrypto%2Cosint%2Cweb3#Old%20Cassette-6" style="color:#d4a94a;text-decoration:none">THEM?!CTF 2026</a>
+  </div>
+</header>
+
+<!-- TABLE OF CONTENTS -->
+<nav class="toc">
+  <div class="toc-title">Contents</div>
+  <div class="toc-list">
+    <a href="#step1" class="toc-link">Step 1 — Identifying the binary</a>
+    <a href="#step2" class="toc-link">Step 2 — Quick emulator</a>
+    <a href="#step3" class="toc-link">Step 3 — Disassemble</a>
+    <a href="#step4" class="toc-link">Step 4 — Understand the Encryption</a>
+    <a href="#step5" class="toc-link">Step 5 — Timer problem</a>
+    <a href="#step6" class="toc-link">Step 6 — Detect cycle</a>
+    <a href="#step7" class="toc-link">Step 7 — Decrypt all 32</a>
+  </div>
+</nav>
+
+<!-- WHAT IS THIS THING -->
+<div class="s-label">Background</div>
+<h2>What you're dealing with</h2>
+<p>You get a file called <code class="ic">main.bin</code> — 3,282 bytes, no extension, no readme, just a blob. The flavour text says: <em>"I found this old cassette tape in my drawer XD"</em>. That sentence is doing a lot of work.</p>
+<p>The binary is a <strong>CHIP-8 ROM</strong> — a program for an interpreted virtual machine from the 1970s, historically loaded onto hobbyist computers from cassette tape. CHIP-8 has a tiny instruction set (~35 opcodes), a 64×32-pixel display, 16 eight-bit registers (V0–VF, with VF reserved as the carry/borrow flag register), and programs that load at memory address <code class="ic">0x200</code>. It's practically a toy. This one hides a flag inside it.</p>
+<p>The ROM draws 32 characters to screen, one at a time. Each character's sprite data is XOR-encrypted using two PRNG registers. Between each draw, the PRNG advances by an exponentially increasing number of steps — eventually reaching <strong>~1.1 trillion steps per character</strong>. The challenge title is also the hint: this is about time, specifically about not wasting all of it.</p>
+
+<div class="note amber">
+  <div class="note-title">Core insight — read this first</div>
+  <p>The PRNG state is two 8-bit registers (VA and VB). That's 256 × 256 = 65,536 possible states. By the pigeonhole principle, it must cycle within that many steps. Find the cycle length, and a trillion-step timer becomes a single modular division. No simulation needed.</p>
+</div>
+
+<hr>
+
+<!-- STEP 1 -->
+<div class="step" id="step1">
+  <div class="step-hd">
+    <div class="step-n">STEP 01</div>
+    <div>
+      <div class="step-title">Identifying the binary</div>
+      <div class="step-sub"><code class="ic">file(1)</code> (the Unix file-type command) is useless here. Read the bytes yourself.</div>
+    </div>
+  </div>
+
+  <p>The first instinct is to run <code class="ic">file</code> (the Unix file-type command). It says <code class="ic">data</code>. Not helpful. Run <code class="ic">xxd</code> instead and look at the first two bytes:</p>
+
+<pre><code>$ xxd main.bin | head -1
+00000000: <span class="co">00e0</span> 1280 a6a6 a6a6 a6a6 a6a6 a6a6 a6a6  ................</code></pre>
+
+  <p><code class="ic">00 E0</code> is the CHIP-8 opcode <code class="ic">CLS</code> — clear the screen. The bytes <code class="ic">12 80</code> immediately after it form a jump instruction to <code class="ic">0x280</code>. The flood of <code class="ic">0xA6</code> bytes starting at offset 4 is sprite data in memory, never executed as code.</p>
+
+  <div class="note teal">
+    <div class="note-title">What is CHIP-8?</div>
+    <p>CHIP-8 is an interpreted language designed for 1970s hobbyist machines. Think of it as the simplest possible virtual machine: one 64×32 pixel screen, 16 eight-bit registers (V0–VF, with VF reserved as the flag register), a small stack, and about 35 opcodes. Programs fit in a few kilobytes and were distributed on — you guessed it — cassette tape.</p>
+  </div>
+</div>
+
+<hr>
+
+<!-- STEP 2 -->
+<div class="step" id="step2">
+  <div class="step-hd">
+    <div class="step-n">STEP 02</div>
+    <div>
+      <div class="step-title">Build a quick emulator to confirm</div>
+      <div class="step-sub">Verify the ROM draws text before diving into the crypto.</div>
+    </div>
+  </div>
+
+  <p>Write a minimal Python CHIP-8 emulator — just enough to decode opcodes and log draw calls. Set the delay timer to always return zero so you don't wait forever. Running it confirms the ROM draws characters:</p>
+
+<pre class="teal"><code>Cycle 163    →  'T'
+Cycle 517    →  'TH'
+Cycle 1770   →  'THE'
+Cycle 6675   →  'THEM'
+Cycle 26092  →  'THEM?'
+...stalls</code></pre>
+
+  <p>Good — the ROM definitely draws the flag. Bad — zeroing the timer breaks the decryption. The PRNG advances during the delay loop; each delay iteration triggers one PRNG step. Skip the delay, and the PRNG state diverges from what it would be during actual execution, causing garbage output from character 6 onwards.</p>
+</div>
+
+<hr>
+
+<!-- STEP 3 -->
+<div class="step" id="step3">
+  <div class="step-hd">
+    <div class="step-n">STEP 03</div>
+    <div>
+      <div class="step-title">Disassemble the ROM</div>
+      <div class="step-sub">Map the subroutines. Find where the PRNG lives.</div>
+    </div>
+  </div>
+
+  <p>Load the binary into a CHIP-8 disassembler (or write one — the instruction set is small enough that an afternoon covers it). The structure falls out quickly:</p>
+
+  <div class="memmap">
+    <div class="mm-cell"><div class="mm-addr">0x200 — entry</div><div class="mm-desc">CLS, jump to 0x280</div></div>
+    <div class="mm-cell"><div class="mm-addr">0x280 — outer loop</div><div class="mm-desc">software-constructed 32-bit countdown (built from multiple 8-bit registers), calls PRNG each tick</div></div>
+    <div class="mm-cell"><div class="mm-addr">0x2C0 — PRNG</div><div class="mm-desc">Updates VA and VB. This is the crypto.</div></div>
+    <div class="mm-cell"><div class="mm-addr">0x322 — charset</div><div class="mm-desc">Picks 1 of 8 sprite subtables via VA&amp;7</div></div>
+    <div class="mm-cell"><div class="mm-addr">0x900 — draw seq</div><div class="mm-desc">32 blocks, one per character</div></div>
+  </div>
+
+  <p>The sprite data is split across 8 subtable banks in memory:</p>
+
+<pre><code>subtable_bases = [
+    <span class="cn">0x400</span>, <span class="cn">0x460</span>, <span class="cn">0x4C0</span>, <span class="cn">0x520</span>,
+    <span class="cn">0x600</span>, <span class="cn">0x660</span>, <span class="cn">0x6C0</span>, <span class="cn">0x720</span>
+]</code></pre>
+</div>
+
+<hr>
+
+<!-- STEP 4 -->
+<div class="step" id="step4">
+  <div class="step-hd">
+    <div class="step-n">STEP 04</div>
+    <div>
+      <div class="step-title">Understand the Encryption</div>
+      <div class="step-sub">XOR with two PRNG registers. That's the whole thing.</div>
+    </div>
+  </div>
+
+  <p>Each of the 32 character draws follows the same pattern. The subroutine at <code class="ic">0x2C0</code> maintains two 8-bit registers, VA and VB, which together form the PRNG state. Before each draw, the PRNG has been stepped some number of times. Then:</p>
+
+<pre><code>plaintext_byte = memory[subtable_bases[VA & 7] + char_offset] ^ VA ^ VB</code></pre>
+
+  <p><code class="ic">VA &amp; 7</code> picks which of the 8 subtables to use (bottom 3 bits of VA). The encrypted sprite byte is XOR'd with both VA and VB to recover the plaintext. XOR is its own inverse — same key decrypts as encrypts — so if you know VA and VB at the moment of each draw, you can recover every character.</p>
+
+  <div class="note teal">
+    <div class="note-title">XOR in plain terms</div>
+    <p>XOR is a bitwise operation where the same key both encrypts and decrypts. If <code class="ic">ciphertext = plaintext XOR key</code>, then <code class="ic">plaintext = ciphertext XOR key</code>. The "key" here is the pair (VA, VB). Predict those two bytes at each draw, and the entire cipher falls apart immediately.</p>
+  </div>
+
+  <p>The PRNG state is two 8-bit values. State space: 256 × 256 = <strong>65,536 possible pairs</strong>. The PRNG update function at <code class="ic">0x2C0</code> is deterministic. Therefore, after at most 65,536 steps, it must revisit a state it's already seen — and from that point it loops forever. This is not an exploit; it's a mathematical certainty (the pigeonhole principle).</p>
+</div>
+
+<hr>
+
+<!-- STEP 5 -->
+<div class="step" id="step5">
+  <div class="step-hd">
+    <div class="step-n">STEP 05</div>
+    <div>
+      <div class="step-title">The timer problem</div>
+      <div class="step-sub">A trillion steps. Yes, per character.</div>
+    </div>
+  </div>
+
+  <p>The delay between each character draw is controlled by a timer. The timer values scale exponentially as the ROM progresses:</p>
+
+  <table class="tbl">
+    <thead>
+      <tr><th>Character</th><th>PRNG steps between draws</th><th>If you simulate it at 1B iters/sec</th></tr>
+    </thead>
+    <tbody>
+      <tr><td class="addr">1</td><td>4</td><td>instant</td></tr>
+      <tr><td class="addr">2</td><td>16</td><td>instant</td></tr>
+      <tr><td class="addr">3</td><td>64</td><td>instant</td></tr>
+      <tr><td class="addr">10</td><td>1,048,576</td><td>~1ms</td></tr>
+      <tr><td class="addr">15</td><td>1,073,741,824</td><td>~1 second</td></tr>
+      <tr><td class="addr">16–32</td><td class="big">~1,100,000,000,000</td><td class="big">~18 minutes each</td></tr>
+    </tbody>
+  </table>
+
+  <p>Characters 16 through 32 each need roughly 1.1 trillion PRNG steps. Even in optimized C, that's 18 minutes per character. 17 late characters × 18 minutes = over 5 hours of runtime, assuming zero bugs and no off-by-one errors anywhere in your timing logic. This path leads nowhere useful.</p>
+</div>
+
+<hr>
+
+<!-- STEP 6 -->
+<div class="step" id="step6">
+  <div class="step-hd">
+    <div class="step-n">STEP 06</div>
+    <div>
+      <div class="step-title">Detect the PRNG cycle</div>
+      <div class="step-sub">A trillion steps mod 34. That's the answer.</div>
+    </div>
+  </div>
+
+  <p>Walk the PRNG forward from its initial state, recording every (VA, VB) pair you've seen. The moment you hit a repeat, you've found the cycle. With only 65,536 possible states, this completes in under a millisecond:</p>
+
+<pre class="teal"><code><span class="ck">def</span> <span class="cf">step_prng</span>(VA, VB):
+    new_VA = (VA + VB) & 0xFF
+    new_VB = (VA ^ new_VA) & 0xFF
+    <span class="ck">return</span> new_VA, new_VB
+
+VA, VB = 0, 0  <span class="cm"># initial state from ROM</span>
+precomputed = {}  <span class="cm"># maps step → (VA, VB) for steps 0..361</span>
+seen = {}
+step = 0
+<span class="ck">while</span> (VA, VB) <span class="ck">not in</span> seen:
+    seen[(VA, VB)] = step
+    precomputed[step] = (VA, VB)  <span class="cm"># VA, VB are current state; step counts forward</span>
+    VA, VB = step_prng(VA, VB)
+    step += 1
+
+cycle_start  = seen[(VA, VB)]   <span class="cm"># 328</span>
+cycle_length = step - cycle_start  <span class="cm"># 34</span></code></pre>
+
+  <p>Cycle length: <strong>34</strong>. Starts at step <strong>328</strong>. Once you're past step 328, the PRNG repeats every 34 steps, forever. This means the state at any trillion-step position can be computed from the ROM's initial PRNG state:</p>
+
+<pre class="teal"><code><span class="ck">def</span> <span class="cf">state_at</span>(n):
+    <span class="ck">if</span> n < 328:
+        <span class="ck">return</span> precomputed[n]
+    idx = 328 + (n - 328) % 34
+    <span class="ck">return</span> precomputed[idx]</code></pre>
+
+  <p>Now applying this to the late characters:</p>
+
+<pre class="teal"><code>timer_per_late_char = 255 * 4_294_967_295   <span class="cm"># = 1,095,216,660,225</span>
+advance = 1_095_216_660_225 % 34           <span class="cm"># = 17</span></code></pre>
+
+  <p>Every late character advances the PRNG exactly <strong>17 positions</strong> in the cycle. One division. The entire trillion-step delay reduced to an integer lookup.</p>
+
+  <div class="cycle-wrap">
+    <span class="cy-lbl">step 0</span>
+    <div class="cy cy-pre">0</div>
+    <div class="cy cy-pre">···</div>
+    <div class="cy cy-pre">327</div>
+    <span class="cy-lbl">→ cycle →</span>
+    <div class="cy cy-on">328</div>
+    <div class="cy cy-on">329</div>
+    <div class="cy cy-on">···</div>
+    <div class="cy cy-on">361</div>
+    <div class="cy cy-loop">↩</div>
+  </div>
+</div>
+
+<hr>
+
+<!-- STEP 7 -->
+<div class="step" id="step7">
+  <div class="step-hd">
+    <div class="step-n">STEP 07</div>
+    <div>
+      <div class="step-title">Decrypt all 32 characters</div>
+      <div class="step-sub">Combine the cycle formula with the XOR and read the flag.</div>
+    </div>
+  </div>
+
+<pre class="grn"><code>flag = []
+cumulative = 0
+
+<span class="ck">for</span> i <span class="ck">in</span> <span class="cf">range</span>(32):
+    VA, VB = state_at(cumulative)
+    subtable = subtable_bases[VA & 7]
+    plaintext = memory[subtable + i] ^ VA ^ VB
+    flag.append(<span class="cf">chr</span>(plaintext))
+    cumulative += timer_steps_for_char(i)
+
+<span class="cf">print</span>(<span class="cs">""</span>.join(flag))</code></pre>
+
+  <p>The ROM draws across four rows of the 64×32 display:</p>
+
+<pre class="grn"><code>Row 1:  T  H  E  M  ?  !  C  T  F  {
+Row 2:  0  L  D  _  T  4  P  3  _  N
+Row 3:  3  V  3  R  _  D  1  E  5  K
+Row 4:  7  }</code></pre>
+</div>
+
+<hr>
+
+<!-- FLAG -->
+<div class="s-label">Flag</div>
+<h2 class="grn">Got it</h2>
+
+<div class="flag-box">
+  <div class="flag-lbl">flag</div>
+  <div class="flag-val">THEM?!CTF{0LD_T4P3_N3V3R_D1E5K7}</div>
+  <div class="flag-note">OLD TAPE NEVER DIE — K7 is French slang for "cassette" (ka-sept → cassette). The whole challenge was one long pun.</div>
+</div>
+
+<p>The flavour text, the title, the K7 suffix — all of it was pointing at CHIP-8 and cassette culture the entire time. Once you know K7 is French for cassette, the challenge design clicks: old tape, CHIP-8, loaded from tape. Even the flag text itself is the joke.</p>
+
+<hr>
+
+<!-- RABBIT HOLES -->
+<div class="s-label">Watch out</div>
+<h2 class="red">Paths that waste your time</h2>
+
+<div class="rabbit">
+  <div class="rx">×</div>
+  <div class="rt"><strong>Running the emulator longer.</strong> 18 minutes per late character, 17 late characters, no guarantee your timer logic is correct. Don't.</div>
+</div>
+<div class="rabbit">
+  <div class="rx">×</div>
+  <div class="rt"><strong>Zeroing the delay timers.</strong> Gets you the first five characters clean, then the PRNG state diverges from what it should be, and every subsequent character is wrong. Looks plausible until you check the output carefully.</div>
+</div>
+<div class="rabbit">
+  <div class="rx">×</div>
+  <div class="rt"><strong>Treating the 0xA6 blob as executable code.</strong> It's sprite pixel data in memory. Never jumps to it. Disassembling it produces garbage.</div>
+</div>
+<div class="rabbit">
+  <div class="rx">×</div>
+  <div class="rt"><strong>Rewriting the simulation in a faster language.</strong> C, Rust, CUDA — doesn't matter. A trillion is a trillion. The fix is math, not speed.</div>
+</div>
+
+<hr>
+
+<!-- TAKEAWAYS -->
+<div class="s-label">Takeaways</div>
+<h2 class="teal">What this challenge teaches</h2>
+
+<div class="lessons">
+  <div class="lcard">
+    <div class="lcard-n">01 — file(1)</div>
+    <div class="lcard-h">Read the bytes yourself</div>
+    <p class="lcard-b">file(1) doesn't know CHIP-8. The first two bytes told the whole story. Always xxd before anything else.</p>
+  </div>
+  <div class="lcard">
+    <div class="lcard-n">02 — PRNG state space</div>
+    <div class="lcard-h">Small state = short cycle</div>
+    <p class="lcard-b">16-bit state → at most 65,536 steps to find the cycle. Check for cycles before simulating anything in the billions.</p>
+  </div>
+  <div class="lcard">
+    <div class="lcard-n">03 — Timer design</div>
+    <div class="lcard-h">Exponential delays are intentional</div>
+    <p class="lcard-b">When delays go 4, 16, 64, 256... the timer is the puzzle. The crypto lives in the delay, not around it.</p>
+  </div>
+  <div class="lcard">
+    <div class="lcard-n">04 — Flavour text</div>
+    <div class="lcard-h">Every word is a breadcrumb</div>
+    <p class="lcard-b">Cassette → CHIP-8 → K7. CTF flavour text is never decorative. It's compressed hints for people who know where to look.</p>
+  </div>
+  <div class="lcard">
+    <div class="lcard-n">05 — Modular arithmetic</div>
+    <div class="lcard-h">1,095,216,660,225 mod 34 = 17</div>
+    <p class="lcard-b">That single line of math replaced 18 minutes of runtime per character. Math beats hardware every time.</p>
+  </div>
+  <div class="lcard">
+    <div class="lcard-n">06 — XOR ciphers</div>
+    <div class="lcard-h">Find the keystream, win</div>
+    <p class="lcard-b">XOR encrypts and decrypts with the same key. PRNG state = key. Once you can predict the state, the cipher is transparent.</p>
+  </div>
+</div>
+
+<hr>
+
+<!-- CLOSING -->
+<div class="closing">
+  <p>A trillion-step timer defeated by a 34-step cycle and one <code class="ic">% 34</code>. The old tape never died — it just needed someone to do the modular arithmetic. <strong>THEM?!CTF{0LD_T4P3_N3V3R_D1E5K7}</strong></p>
+</div>
+
+</div>
+
+</body>
+</html>
