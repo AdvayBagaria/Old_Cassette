@@ -376,6 +376,66 @@ hr{border:none;border-top:1px solid #1a1812;margin:44px 0}
 .skip-link:focus{
   top:0;
 }
+
+/* ── ANIMATIONS & INTERACTIVITY ── */
+@keyframes glitch {
+  0% { text-shadow: 2px 0 #c05050, -2px 0 #3dbfb8; }
+  20% { text-shadow: -2px 0 #c05050, 2px 0 #3dbfb8; }
+  40% { text-shadow: 2px 0 #c05050, -2px 0 #3dbfb8; }
+  60% { text-shadow: -2px 0 #c05050, 2px 0 #3dbfb8; }
+  80% { text-shadow: 2px 0 #c05050, -2px 0 #3dbfb8; }
+  100% { text-shadow: -2px 0 #c05050, 2px 0 #3dbfb8; }
+}
+.hero-title:hover {
+  animation: glitch 0.3s infinite;
+}
+
+.fade-in {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+}
+.fade-in.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.flag-box {
+  cursor: pointer;
+  transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.2s;
+  position: relative;
+}
+.flag-box:hover {
+  transform: scale(1.02);
+  box-shadow: 0 0 20px rgba(212, 169, 74, 0.15);
+}
+.flag-box:active {
+  transform: scale(0.98);
+}
+
+.rabbit {
+  transition: transform 0.2s ease-out;
+}
+.rabbit:hover {
+  transform: translateX(8px);
+}
+
+.toc-link {
+  transition: all 0.2s ease;
+}
+.toc-link:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+}
+
+.lcard {
+  transition: transform 0.2s, background 0.2s;
+}
+.lcard:hover {
+  transform: translateY(-4px);
+  background: #18160d;
+}
+
 </style>
 
 </head>
@@ -413,7 +473,7 @@ hr{border:none;border-top:1px solid #1a1812;margin:44px 0}
 <div class="s-label">Background</div>
 <h2>What you're dealing with</h2>
 <p>You get a file called <code class="ic">main.bin</code> — 3,282 bytes, no extension, no readme, just a blob. The flavour text says: <em>"I found this old cassette tape in my drawer XD"</em>. That sentence is doing a lot of work.</p>
-<p>The binary is a <strong>CHIP-8 ROM</strong> — a program for an interpreted virtual machine from the 1970s, historically loaded onto hobbyist computers from cassette tape. CHIP-8 has a tiny instruction set (~35 opcodes), a 64×32-pixel display, 16 eight-bit registers (V0–VF, with VF reserved as the carry/borrow flag register), and programs that load at memory address <code class="ic">0x200</code>. It's practically a toy. This one hides a flag inside it.</p>
+<p>The binary is a <strong>CHIP-8 ROM</strong> — a program for an interpreted virtual machine from the 1970s, historically loaded onto hobbyist computers from cassette tapes. CHIP-8 has a tiny instruction set (~35 opcodes), a 64×32-pixel display, 16 eight-bit registers (V0–VF, with VF reserved as the carry/borrow flag register), and programs that load at memory address <code class="ic">0x200</code>. It's practically a toy. This one hides a flag inside it.</p>
 <p>The ROM draws 32 characters to screen, one at a time. Each character's sprite data is XOR-encrypted using two PRNG registers. Between each draw, the PRNG advances by an exponentially increasing number of steps — eventually reaching <strong>~1.1 trillion steps per character</strong>. The challenge title is also the hint: this is about time, specifically about not wasting all of it.</p>
 
 <div class="note amber">
@@ -734,6 +794,40 @@ Row 4:  7  }</code></pre>
 </div>
 
 </div>
+
+<script>
+// Scroll Reveal Animation
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      entry.target.classList.add('visible');
+      // Optional: stop observing once revealed
+      observer.unobserve(entry.target);
+    }
+  });
+}, { threshold: 0.1 });
+
+document.querySelectorAll('.step, h2, .note, .flag-box, .lessons, .closing, .rabbit').forEach(el => {
+  el.classList.add('fade-in');
+  observer.observe(el);
+});
+
+// Interactive Flag Box (Copy to Clipboard)
+const flagBox = document.querySelector('.flag-box');
+const flagVal = document.querySelector('.flag-val');
+let originalText = flagVal.innerText;
+
+flagBox.addEventListener('click', () => {
+  navigator.clipboard.writeText(originalText).then(() => {
+    flagVal.style.color = '#3dbfb8';
+    flagVal.innerText = "COPIED TO CLIPBOARD!";
+    setTimeout(() => {
+      flagVal.style.color = '';
+      flagVal.innerText = originalText;
+    }, 2000);
+  });
+});
+</script>
 
 </body>
 </html>
